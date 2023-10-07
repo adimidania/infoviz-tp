@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <style>
+      body {
+        font: 10px sans-serif;
+      }
+
+      .line {
+        fill: none;
+        stroke: steelblue;
+        stroke-width: 1.5px;
+      }
+
+      .context .line {
+        stroke-width: 0.5px;
+      }
+
+      .brush .extent {
+        stroke: #fff;
+        fill-opacity: 0.125;
+        shape-rendering: crispEdges;
+      }
+
+      .line.highlight {
+        fill-opacity: 1;
+        stroke-opacity: 1;
+      }
+
+      .context .line.highlight {
+        stroke-width: 1;
+      }
+
+      h3 {
+        text-align: center;
+      }
+      .zoom {
+        fill: none;
+        pointer-events: all;
+      }
+
+      #svg {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <body>
+      <div id="svg" style="width: 100%; height: 100%"></div>
+    </body>
+    <script>
+      // Setting the dimensions
+      var svg_width = 900,
+        svg_height = 500;
+
+      var margin = { top: 80, right: 60, bottom: 110, left: 60 };
+      var margin2 = { top: 430, right: 60, bottom: 30, left: 60 };
+
+      var width = svg_width - margin.left - margin.right,
+        height = svg_height - margin.top - margin.bottom,
+        height2 = svg_height - margin2.top - margin2.bottom;
+
+      // Date parsing and Time scaling
+      var parseDate = d3.timeParse("%Y%m%d");
+
+      var x = d3.scaleTime().range([0, width]),
+        x2 = d3.scaleTime().range([0, width]);
+
+      var y = d3.scaleLinear().range([height, 0]),
+        y2 = d3.scaleLinear().range([height2, 0]);
+
+      // Setting the colors
+      var color = d3.scaleOrdinal(d3.schemeCategory10);
+
+      var colors = {
+        "Shape of You": "#aa3377",
+        Despacito: "#000000",
+        "Someone Just Like You": "#f8ff1c",
+        Humble: "#66ccee",
+        Unforgettable: "#d55e00",
+      };
+
+      // Setting the axis and the brush
+      var xAxis = d3.axisBottom(x);
+      var yAxis = d3.axisLeft(y);
+      var xAxis2 = d3.axisBottom(x2);
+
+      var brush = d3
+        .brushX()
+        .extent([
+          [0, 0],
+          [width, height2],
+        ])
+        .on("brush end", brushed);
+
+      var zoom = d3
+        .zoom()
+        .scaleExtent([1, Infinity])
+        .translateExtent([
+          [0, 0],
+          [width, height],
+        ])
+        .extent([
+          [0, 0],
+          [width, height],
+        ])
+        .on("zoom", zoomed);
+
+      // Creating the lines
+      var line = d3
+        .line()
+        .x(function (d) {
+          return x(d.Date);
+        })
+        .y(function (d) {
+          return y(d.plays);
+        })
+        .curve(d3.curveBasis);
+
+      var line2 = d3
+        .line()
+        .x(function (d) {
+          return x2(d.Date);
+        })
+        .y(function (d) {
+          return y2(d.plays);
+        })
+        .curve(d3.curveBasis);
+
+      var svg = d3
+        .select("#svg")
+        .append("svg")
+        .attr("width", svg_width + 100)
+        .attr("height", svg_height);
+
+      svg
+        .append("defs")
+        .append("clipPath")
+        .attr("id", "clip")
+        .append("rect")
+        .attr("width", width)
+        .attr("height", height);
+
+      // Legend creation
+      svg
+        .append("circle")
+        .attr("cx", 875)
+        .attr("cy", 80)
+        .attr("r", 5)
+        .style("fill", "#aa3377");
+
+      svg
+        .append("circle")
+        .attr("cx", 875)
+        .attr("cy", 105)
+        .attr("r", 5)
+        .style("fill", "#000");
+
+      svg
+        .append("circle")
+        .attr("cx", 875)
+        .attr("cy", 130)
+        .attr("r", 5)
+        .style("fill", "#f8ff1c");
+
+      svg
+        .append("circle")
+        .attr("cx", 875)
+        .attr("cy", 155)
+        .attr("r", 5)
+        .style("fill", "#66ccee");
+
+      svg
+        .append("circle")
+        .attr("cx", 875)
+        .attr("cy", 180)
+        .attr("r", 5)
+        .style("fill", "#d55e00");
+
+      svg
+        .append("text")
+        .attr("x", 885)
+        .attr("y", 80)
+        .text("Shape of You")
+        .style("font-size", "12px")
+        .attr("alignment-baseline", "middle");
+
+      svg
+        .append("text")
+        .attr("x", 885)
+        .attr("y", 105)
+        .text("Despacito")
+        .style("font-size", "12px")
+        .attr("alignment-baseline", "middle");
+
+      svg
+        .append("text")
+        .attr("x", 885)
+        .attr("y", 130)
+        .text("Someone Just Like You")
+        .style("font-size", "12px")
+        .attr("alignment-baseline", "middle");
+
+      svg
+        .append("text")
+        .attr("x", 885)
+        .attr("y", 155)
+        .text("Humble")
+        .style("font-size", "12px")
+        .attr("alignment-baseline", "middle");
+
+      svg
+        .append("text")
+        .attr("x", 885)
+        .attr("y", 180)
+        .text("Unforgettable")
+        .style("font-size", "12px")
+        .attr("alignment-baseline", "middle");
+
+      // Setting the focus and the context
+      var focus = svg
+        .append("g")
+        .attr("class", "focus")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      var context = svg
+        .append("g")
+        .attr("class", "context")
+        .attr(
+          "transform",
+          "translate(" + margin2.left + "," + margin2.top + ")"
+        );
+
+      d3.csv("../../data/spotify_clean.csv", function (data) {
+        color.domain(
+          d3.keys(data[0]).filter(function (key) {
+            return key !== "Date";
+          })
+        );
+
+        data.forEach(function (d) {
+          d.Date = parseDate(d.Date);
+        });
+
+        var musics = color.domain().map(function (name) {
+          return {
+            name: name,
+            values: data.map(function (d) {
+              return { Date: d.Date, plays: +d[name] };
+            }),
+          };
+        });
+
+        x.domain(
+          d3.extent(data, function (d) {
+            return d.Date;
+          })
+        );
+        x2.domain(
+          d3.extent(data, function (d) {
+            return d.Date;
+          })
+        );
+
+        y.domain([
+          d3.min(musics, function (c) {
+            return d3.min(c.values, function (v) {
+              return v.plays;
+            });
+          }),
+          d3.max(musics, function (c) {
+            return d3.max(c.values, function (v) {
+              return v.plays;
+            });
+          }),
+        ]);
+
+        y2.domain(y.domain());
+
+        focus
+          .append("g")
+          .attr("class", "x axis")
+          .attr("transform", "translate(0," + height + ")")
+          .call(xAxis);
+
+        focus
+          .append("g")
+          .attr("class", "y axis")
+          .call(yAxis)
+          .append("text")
+          .attr("transform", "rotate(270)")
+          .attr("x", 60)
+          .attr("dy", ".32em")
+          .attr("fill", "black");
+
+        var music = focus
+          .selectAll(".music")
+          .data(musics)
+          .enter()
+          .append("g")
+          .attr("class", "music");
+
+        music
+          .append("path")
+          .attr("class", "line")
+          .attr("clip-path", "url(#clip)")
+          .attr("d", function (d) {
+            return line(d.values);
+          })
+          .style("stroke", function (d) {
+            return colors[d.name];
+          });
+
+        var music2 = context
+          .selectAll(".music")
+          .data(musics)
+          .enter()
+          .append("g")
+          .attr("class", "music");
+
+        music2
+          .append("path")
+          .attr("class", "line")
+          .attr("d", function (d) {
+            return line2(d.values);
+          })
+          .style("stroke", function (d) {
+            return colors[d.name];
+          });
+
+        context
+          .append("g")
+          .attr("class", "x axis")
+          .attr("transform", "translate(0," + height2 + ")")
+          .call(xAxis2);
+
+        context
+          .append("g")
+          .attr("class", "brush")
+          .call(brush)
+          .call(brush.move, x.range());
+
+        svg
+          .append("rect")
+          .attr("class", "zoom")
+          .attr("width", width)
+          .attr("height", height)
+          .attr(
+            "transform",
+            "translate(" + margin.left + "," + margin.top + ")"
+          )
+          .call(zoom);
+      });
+
+      function brushed() {
+        if (d3.event.sourceEvent && d3.event.sourceEvent.type === "zoom")
+          return;
+
+        var s = d3.event.selection || x2.range();
+
+        x.domain(s.map(x2.invert, x2));
+
+        focus.selectAll(".line").attr("d", function (d) {
+          return line(d.values);
+        });
+        focus.select(".axis--x").call(xAxis);
+
+        svg
+          .select(".zoom")
+          .call(
+            zoom.transform,
+            d3.zoomIdentity.scale(width / (s[1] - s[0])).translate(-s[0], 0)
+          );
+      }
+
+      function zoomed() {
+        if (d3.event.sourceEvent && d3.event.sourceEvent.type === "brush")
+          return;
+
+        var t = d3.event.transform;
+
+        x.domain(t.rescaleX(x2).domain());
+
+        focus.selectAll(".line").attr("d", function (d) {
+          return line(d.values);
+        });
+
+        focus.select(".axis--x").call(xAxis);
+
+        context.select(".brush").call(brush.move, x.range().map(t.invertX, t));
+      }
+    </script>
+  </body>
+</html>

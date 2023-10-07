@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <style>
+      body {
+        font: 10px sans-serif;
+      }
+
+      svg {
+        font: 10px sans-serif;
+      }
+
+      .area {
+        fill: steelblue;
+        clip-path: url(#clip);
+      }
+
+      .axis path,
+      .axis line {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+      }
+
+      .brush .extent {
+        stroke: #fff;
+        fill-opacity: 0.125;
+        shape-rendering: crispEdges;
+      }
+    </style>
+    <title>Figure 01</title>
+  </head>
+  <body>
+    <div id="svg" style="width: 100%; height: 100%"></div>
+    <script>
+      var svg_width = 900,
+        svg_height = 500;
+
+      var margin = { top: 40, right: 60, bottom: 110, left: 60 };
+      var margin2 = { top: 430, right: 60, bottom: 30, left: 60 };
+
+      var width = svg_width - margin.left - margin.right,
+        height = svg_height - margin.top - margin.bottom,
+        height2 = svg_height - margin2.top - margin2.bottom;
+
+      var parseDate = d3.timeParse("%Y%m%d");
+
+      var x = d3.scaleTime().range([0, width]),
+        x2 = d3.scaleTime().range([0, width]),
+        y = d3.scaleLinear().range([height, 0]),
+        y2 = d3.scaleLinear().range([height2, 0]);
+
+      var xAxis = d3.axisBottom(x),
+        xAxis2 = d3.axisBottom(x2),
+        yAxis = d3.axisLeft(y);
+
+      var brush = d3
+        .brushX()
+        .extent([
+          [0, 0],
+          [width, height2],
+        ])
+        .on("brush end", brushed);
+
+      var area = d3
+        .area()
+        .curve(d3.curveMonotoneX)
+        .x(function (d) {
+          return x(d.date);
+        })
+        .y0(height)
+        .y1(function (d) {
+          return y(d.open);
+        });
+
+      var area2 = d3
+        .area()
+        .curve(d3.curveMonotoneX)
+        .x(function (d) {
+          return x2(d.date);
+        })
+        .y0(height2)
+        .y1(function (d) {
+          return y2(d.open);
+        });
+
+      var svg = d3
+        .select("#svg")
+        .append("svg")
+        .attr("width", svg_width + 100)
+        .attr("height", svg_height);
+
+      svg
+        .append("defs")
+        .append("clipPath")
+        .attr("id", "clip")
+        .append("rect")
+        .attr("width", width)
+        .attr("height", height);
+
+      var focus = svg
+        .append("g")
+        .attr("class", "focus")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      var barsGroup = focus.append("g").attr("clip-path", "url(#clip)");
+
+      var context = svg
+        .append("g")
+        .attr("class", "context")
+        .attr(
+          "transform",
+          "translate(" + margin2.left + "," + margin2.top + ")"
+        );
+
+      d3.csv("../../data/stocks.csv", type, function (error, data) {
+        x.domain(
+          d3.extent(data, function (d) {
+            return d.date;
+          })
+        );
+
+        y.domain([
+          0,
+          d3.max(data, function (d) {
+            return d.open;
+          }),
+        ]);
+
+        x2.domain(x.domain());
+        y2.domain(y.domain());
+
+        focus.append("path").datum(data).attr("class", "area").attr("d", area);
+
+        focus
+          .append("g")
+          .attr("class", "axis axis--x")
+          .attr("transform", "translate(0," + height + ")")
+          .call(xAxis);
+
+        focus.append("g").attr("class", "axis axis--y").call(yAxis);
+
+        context
+          .append("path")
+          .datum(data)
+          .attr("class", "area")
+          .attr("d", area2);
+
+        context
+          .append("g")
+          .attr("class", "axis axis--x")
+          .attr("transform", "translate(0," + height2 + ")")
+          .call(xAxis2);
+
+        context
+          .append("g")
+          .attr("class", "brush")
+          .call(brush)
+          .call(brush.move, x.range());
+      });
+
+      function brushed() {
+        if (d3.event.sourceEvent && d3.event.sourceEvent.type === "zoom")
+          return;
+        var s = d3.event.selection || x2.range();
+        x.domain(s.map(x2.invert, x2));
+        focus.select(".area").attr("d", area);
+        focus.select(".axis--x").call(xAxis);
+      }
+
+      function type(d) {
+        d.date = parseDate(d.date);
+        d.open = +d.open;
+        return d;
+      }
+    </script>
+  </body>
+</html>
