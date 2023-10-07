@@ -5,6 +5,6 @@ This assignment is part of my master's program's data visualization module. Its 
 
 ## 🛠️ Skills needed
 
-Basic JavaScript skills are required to complete this challenge.
+Basic JavaScript skills are required to complete this assignment.
 
 **Made with so much 💗 by Dania** 
